@@ -27,7 +27,6 @@ def get_fashion_mnist_labels(labels):
 
 
 def show_fashion_mnist(images, labels):
-    use_svg_display()
     # 这里的_表示我们忽略（不使用）的变量
     _, figs = plt.subplots(1, len(images), figsize=(12, 12))
     for f, img, lbl in zip(figs, images, labels):
@@ -55,3 +54,36 @@ def load_data_fashion_mnist(batch_size, resize=None, root='~/Datasets/FashionMNI
     test_iter = torch.utils.data.DataLoader(mnist_test, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     return train_iter, test_iter
+
+def evaluate_accuracy(data_iter,net):
+    acc_sum,n=0.0,0
+    for X,y in data_iter:
+        acc_sum+=(net(X).argmax(dim=1)==y).float().sum().item()
+        n+=y.shape[0]
+    return acc_sum/n
+
+def train_ch3(net,train_iter,test_iter,loss,num_epochs,batch_size,params=None,lr=None,optimizer=None):
+    for epoch in range(num_epochs):
+        train_l_sum,train_acc_sum,n=0.0,0.0,0
+        for X,y in train_iter:
+            y_hat=net(X)
+            l=loss(y_hat,y).sum()
+
+            if optimizer is not None:
+                optimizer.zero_grad()
+            elif params is not None and params[0].grad is not None:
+                for param in params:
+                    param.grad.data.zero_()
+            
+            l.backward()
+            if optimizer is None:
+                torch.optim.SGD(params,lr,batch_size)
+            else:
+                optimizer.step()
+
+            train_l_sum+=l.item()
+            train_acc_sum+=(y_hat.argmax(dim=1)==y).sum().item()
+            n+=y.shape[0]
+        test_acc = evaluate_accuracy(test_iter, net)
+        print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f'
+              % (epoch + 1, train_l_sum / n, train_acc_sum / n, test_acc))
